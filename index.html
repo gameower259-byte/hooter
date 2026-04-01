@@ -2,108 +2,122 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Hooter! - Canlı Bilgi Yarışması</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hooter! Sınırsız Eğlence</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
-        :root {
-            --purple: #46178f; --blue: #1368ce; --red: #eb001f; --green: #26890c; --orange: #d89e00;
-        }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--purple); color: white; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-        .card { background: white; color: #333; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px; text-align: center; }
-        input { width: 80%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px; font-size: 1rem; }
-        button { width: 88%; padding: 12px; margin: 10px 0; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; background: #333; color: white; }
-        .btn-create { background: var(--blue); }
-        .btn-join { background: var(--green); }
-        .question-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
-        .ans { padding: 20px; color: white; font-weight: bold; border-radius: 8px; cursor: pointer; }
-        .ans-a { background: var(--red); } .ans-b { background: var(--blue); } .ans-c { background: var(--orange); } .ans-d { background: var(--green); }
-        #setup-room { text-align: left; max-width: 600px; }
+        :root { --purple: #46178f; --blue: #1368ce; --red: #eb001f; --green: #26890c; --orange: #d89e00; }
+        body { font-family: sans-serif; background: var(--purple); color: white; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .card { background: white; color: #333; padding: 20px; border-radius: 12px; width: 90%; max-width: 500px; text-align: center; }
+        input, select { width: 90%; padding: 10px; margin: 5px 0; border: 1px solid #ddd; border-radius: 6px; }
+        button { width: 95%; padding: 12px; margin: 10px 0; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .q-item { border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 10px; text-align: left; }
+        .ans-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .ans-btn { padding: 20px; color: white; border-radius: 8px; font-size: 1.1rem; }
+        .bg-red { background: var(--red); } .bg-blue { background: var(--blue); } .bg-orange { background: var(--orange); } .bg-green { background: var(--green); }
     </style>
 </head>
 <body>
 
     <div id="auth-screen" class="card">
         <h1>Hooter!</h1>
-        <input type="text" id="username" placeholder="Kullanıcı Adı">
+        <input type="text" id="username" placeholder="Adınız">
         <input type="text" id="pin-input" placeholder="Oyun PIN">
-        <button class="btn-join" onclick="joinRoom()">Odaya Katıl</button>
-        <hr>
-        <button class="btn-create" onclick="showSetup()">Kendi Odana Kur</button>
+        <button style="background: var(--green); color:white;" onclick="joinRoom()">Odaya Katıl</button>
+        <button style="background: var(--blue); color:white;" onclick="showSetup()">Kendi Yarışmanı Kur</button>
     </div>
 
-    <div id="setup-room" class="card" style="display:none; max-width: 500px;">
+    <div id="setup-room" class="card" style="display:none; max-width: 600px; max-height: 80vh; overflow-y: auto;">
         <h2>Soru Hazırla</h2>
-        <input type="text" id="q-text" placeholder="Soru Metni">
-        <input type="text" id="q-a" placeholder="A Şıkkı">
-        <input type="text" id="q-b" placeholder="B Şıkkı">
-        <input type="text" id="q-c" placeholder="C Şıkkı">
-        <input type="text" id="q-d" placeholder="D Şıkkı">
-        <select id="q-correct" style="width: 88%; padding: 10px; margin: 10px 0;">
-            <option value="a">Doğru Şık: A</option>
-            <option value="b">Doğru Şık: B</option>
-            <option value="c">Doğru Şık: C</option>
-            <option value="d">Doğru Şık: D</option>
-        </select>
-        <button class="btn-create" onclick="createRoom()">Odayı Kur ve Başlat</button>
+        <div id="questions-list">
+            <div class="q-item">
+                <strong>Soru 1:</strong>
+                <input type="text" class="q-text" placeholder="Soru nedir?">
+                <input type="text" class="q-a" placeholder="A Şıkkı">
+                <input type="text" class="q-b" placeholder="B Şıkkı">
+                <input type="text" class="q-c" placeholder="C Şıkkı">
+                <input type="text" class="q-d" placeholder="D Şıkkı">
+                <select class="q-correct"><option value="a">Doğru: A</option><option value="b">Doğru: B</option><option value="c">Doğru: C</option><option value="d">Doğru: D</option></select>
+            </div>
+        </div>
+        <button onclick="addQuestionField()" style="background: #eee; color: #333;">+ Başka Soru Ekle</button>
+        <button onclick="createRoom()" style="background: var(--purple); color: white;">Odayı Kur ve Başlat</button>
     </div>
 
-    <div id="game-screen" class="card" style="display:none; max-width: 800px;">
-        <h2 id="display-question">Soru Yükleniyor...</h2>
-        <div class="question-box">
-            <div class="ans ans-a" onclick="sendAnswer('a')">▲ A</div>
-            <div class="ans ans-b" onclick="sendAnswer('b')">● B</div>
-            <div class="ans ans-c" onclick="sendAnswer('c')">■ C</div>
-            <div class="ans ans-d" onclick="sendAnswer('d')">◆ D</div>
+    <div id="game-screen" class="card" style="display:none; max-width: 700px;">
+        <h3 id="q-number">Soru 1/1</h3>
+        <h1 id="display-q-text">Soru Yükleniyor...</h1>
+        <div class="ans-grid">
+            <div class="ans-btn bg-red" id="btn-a" onclick="submitAns('a')">A</div>
+            <div class="ans-btn bg-blue" id="btn-b" onclick="submitAns('b')">B</div>
+            <div class="ans-btn bg-orange" id="btn-c" onclick="submitAns('c')">C</div>
+            <div class="ans-btn bg-green" id="btn-d" onclick="submitAns('d')">D</div>
         </div>
-        <p id="room-pin-display"></p>
     </div>
 
     <script>
-        const socket = io("https://hooter.onrender.com"); // KENDI LINKINLE DEGISTIR
-        let myPin = "";
+        const socket = io("https://hooter.onrender.com"); // Kendi linkinle değiştir!
+
+        function addQuestionField() {
+            const list = document.getElementById('questions-list');
+            const count = list.getElementsByClassName('q-item').length + 1;
+            const div = document.createElement('div');
+            div.className = 'q-item';
+            div.innerHTML = `<strong>Soru ${count}:</strong>
+                <input type="text" class="q-text" placeholder="Soru nedir?">
+                <input type="text" class="q-a" placeholder="A Şıkkı"><input type="text" class="q-b" placeholder="B Şıkkı">
+                <input type="text" class="q-c" placeholder="C Şıkkı"><input type="text" class="q-d" placeholder="D Şıkkı">
+                <select class="q-correct"><option value="a">Doğru: A</option><option value="b">Doğru: B</option><option value="c">Doğru: C</option><option value="d">Doğru: D</option></select>`;
+            list.appendChild(div);
+        }
+
+        function createRoom() {
+            const username = document.getElementById('username').value || "Admin";
+            const qItems = document.getElementsByClassName('q-item');
+            const questions = [];
+            for(let item of qItems) {
+                questions.push({
+                    q: item.querySelector('.q-text').value,
+                    a: item.querySelector('.q-a').value,
+                    b: item.querySelector('.q-b').value,
+                    c: item.querySelector('.q-c').value,
+                    d: item.querySelector('.q-d').value,
+                    correct: item.querySelector('.q-correct').value
+                });
+            }
+            socket.emit('createRoom', { username, questions });
+        }
+
+        function joinRoom() {
+            const username = document.getElementById('username').value || "Oyuncu";
+            const pin = document.getElementById('pin-input').value;
+            socket.emit('joinRoom', { pin, username });
+        }
 
         function showSetup() {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('setup-room').style.display = 'block';
         }
 
-        function createRoom() {
-            const username = document.getElementById('username').value;
-            const questions = [{
-                q: document.getElementById('q-text').value,
-                a: document.getElementById('q-a').value,
-                b: document.getElementById('q-b').value,
-                c: document.getElementById('q-c').value,
-                d: document.getElementById('q-d').value,
-                correct: document.getElementById('q-correct').value
-            }];
-            socket.emit('createRoom', { username, questions });
-        }
-
-        function joinRoom() {
-            const username = document.getElementById('username').value;
-            const pin = document.getElementById('pin-input').value;
-            socket.emit('joinRoom', { pin, username });
-        }
-
         socket.on('roomCreated', (data) => {
             alert("Oda Kuruldu! PIN: " + data.pin);
-            myPin = data.pin;
             socket.emit('startGame', data.pin);
         });
 
-        socket.on('joinedSuccessfully', (data) => {
+        socket.on('joinedSuccessfully', () => {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('game-screen').style.display = 'block';
-            document.getElementById('room-pin-display').innerText = "PIN: " + data.pin;
         });
 
-        socket.on('nextQuestion', (question) => {
+        socket.on('nextQuestion', (data) => {
             document.getElementById('setup-room').style.display = 'none';
-            document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('game-screen').style.display = 'block';
-            document.getElementById('display-question').innerText = question.q;
-            // Şık metinlerini butonlara yazabilirsin (Geliştirilebilir)
+            document.getElementById('q-number').innerText = `Soru ${data.index}/${data.total}`;
+            document.getElementById('display-q-text').innerText = data.q;
+            document.getElementById('btn-a').innerText = "▲ " + data.a;
+            document.getElementById('btn-b').innerText = "● " + data.b;
+            document.getElementById('btn-c').innerText = "■ " + data.c;
+            document.getElementById('btn-d').innerText = "◆ " + data.d;
         });
 
         socket.on('error', (msg) => alert(msg));
