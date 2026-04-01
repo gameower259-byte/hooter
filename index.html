@@ -1,38 +1,109 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>Kahoot Clone</title>
+    <meta charset="UTF-8">
+    <title>Hooter! - Canlı Bilgi Yarışması</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --purple: #46178f; --blue: #1368ce; --red: #eb001f; --green: #26890c; --orange: #d89e00;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--purple); color: white; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .card { background: white; color: #333; padding: 2rem; border-radius: 1rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 400px; text-align: center; }
+        input { width: 80%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 5px; font-size: 1rem; }
+        button { width: 88%; padding: 12px; margin: 10px 0; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.2s; background: #333; color: white; }
+        .btn-create { background: var(--blue); }
+        .btn-join { background: var(--green); }
+        .question-box { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .ans { padding: 20px; color: white; font-weight: bold; border-radius: 8px; cursor: pointer; }
+        .ans-a { background: var(--red); } .ans-b { background: var(--blue); } .ans-c { background: var(--orange); } .ans-d { background: var(--green); }
+        #setup-room { text-align: left; max-width: 600px; }
+    </style>
 </head>
 <body>
-    <div id="login">
-        <input type="text" id="pin" placeholder="Oyun PIN (1234)">
-        <input type="text" id="username" placeholder="Adın">
-        <button onclick="join()">Katıl</button>
+
+    <div id="auth-screen" class="card">
+        <h1>Hooter!</h1>
+        <input type="text" id="username" placeholder="Kullanıcı Adı">
+        <input type="text" id="pin-input" placeholder="Oyun PIN">
+        <button class="btn-join" onclick="joinRoom()">Odaya Katıl</button>
+        <hr>
+        <button class="btn-create" onclick="showSetup()">Kendi Odana Kur</button>
     </div>
 
-    <div id="game" style="display:none;">
-        <h1>Oyun Bekleme Odası</h1>
-        <ul id="users"></ul>
+    <div id="setup-room" class="card" style="display:none; max-width: 500px;">
+        <h2>Soru Hazırla</h2>
+        <input type="text" id="q-text" placeholder="Soru Metni">
+        <input type="text" id="q-a" placeholder="A Şıkkı">
+        <input type="text" id="q-b" placeholder="B Şıkkı">
+        <input type="text" id="q-c" placeholder="C Şıkkı">
+        <input type="text" id="q-d" placeholder="D Şıkkı">
+        <select id="q-correct" style="width: 88%; padding: 10px; margin: 10px 0;">
+            <option value="a">Doğru Şık: A</option>
+            <option value="b">Doğru Şık: B</option>
+            <option value="c">Doğru Şık: C</option>
+            <option value="d">Doğru Şık: D</option>
+        </select>
+        <button class="btn-create" onclick="createRoom()">Odayı Kur ve Başlat</button>
+    </div>
+
+    <div id="game-screen" class="card" style="display:none; max-width: 800px;">
+        <h2 id="display-question">Soru Yükleniyor...</h2>
+        <div class="question-box">
+            <div class="ans ans-a" onclick="sendAnswer('a')">▲ A</div>
+            <div class="ans ans-b" onclick="sendAnswer('b')">● B</div>
+            <div class="ans ans-c" onclick="sendAnswer('c')">■ C</div>
+            <div class="ans ans-d" onclick="sendAnswer('d')">◆ D</div>
+        </div>
+        <p id="room-pin-display"></p>
     </div>
 
     <script>
-        // Render'daki Web Service adresini buraya yazacaksın
-        const socket = io("https://senin-servis-adın.onrender.com");
+        const socket = io("https://hooter.onrender.com"); // KENDI LINKINLE DEGISTIR
+        let myPin = "";
 
-        function join() {
-            const pin = document.getElementById('pin').value;
+        function showSetup() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('setup-room').style.display = 'block';
+        }
+
+        function createRoom() {
             const username = document.getElementById('username').value;
+            const questions = [{
+                q: document.getElementById('q-text').value,
+                a: document.getElementById('q-a').value,
+                b: document.getElementById('q-b').value,
+                c: document.getElementById('q-c').value,
+                d: document.getElementById('q-d').value,
+                correct: document.getElementById('q-correct').value
+            }];
+            socket.emit('createRoom', { username, questions });
+        }
 
+        function joinRoom() {
+            const username = document.getElementById('username').value;
+            const pin = document.getElementById('pin-input').value;
             socket.emit('joinRoom', { pin, username });
         }
 
-        socket.on('userJoined', (user) => {
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('game').style.display = 'block';
-            const li = document.createElement('li');
-            li.textContent = user;
-            document.getElementById('users').appendChild(li);
+        socket.on('roomCreated', (data) => {
+            alert("Oda Kuruldu! PIN: " + data.pin);
+            myPin = data.pin;
+            socket.emit('startGame', data.pin);
+        });
+
+        socket.on('joinedSuccessfully', (data) => {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('room-pin-display').innerText = "PIN: " + data.pin;
+        });
+
+        socket.on('nextQuestion', (question) => {
+            document.getElementById('setup-room').style.display = 'none';
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('display-question').innerText = question.q;
+            // Şık metinlerini butonlara yazabilirsin (Geliştirilebilir)
         });
 
         socket.on('error', (msg) => alert(msg));
