@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kahoot Clone</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div id="login">
+        <input type="text" id="pin" placeholder="Oyun PIN (1234)">
+        <input type="text" id="username" placeholder="Adın">
+        <button onclick="join()">Katıl</button>
+    </div>
+
+    <div id="game" style="display:none;">
+        <h1>Oyun Bekleme Odası</h1>
+        <ul id="users"></ul>
+    </div>
+
+    <script>
+        // Render'daki Web Service adresini buraya yazacaksın
+        const socket = io("https://senin-servis-adın.onrender.com");
+
+        function join() {
+            const pin = document.getElementById('pin').value;
+            const username = document.getElementById('username').value;
+
+            socket.emit('joinRoom', { pin, username });
+        }
+
+        socket.on('userJoined', (user) => {
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            const li = document.createElement('li');
+            li.textContent = user;
+            document.getElementById('users').appendChild(li);
+        });
+
+        socket.on('error', (msg) => alert(msg));
+    </script>
+</body>
+</html>
